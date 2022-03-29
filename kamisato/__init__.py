@@ -15,6 +15,7 @@ import asyncio
 import contextlib
 import glob
 import logging
+import pathlib
 from asyncio.subprocess import Process as AsyncProcess
 from logging.handlers import RotatingFileHandler
 from typing import TYPE_CHECKING, TypeVar
@@ -37,6 +38,8 @@ if TYPE_CHECKING:
 __all__ = ['Kamisato', 'Context']
 
 def create_logger(name: str, *, stream: bool = False, level: int = logging.DEBUG, size: int = 8 * 1024 * 1024) -> logging.Logger:
+    (pathlib.Path.cwd() / "logs").mkdir(exist_ok=True)
+
     log_fmt = logging.Formatter("[%(asctime)s %(name)s/%(levelname)s] %(message)s", datefmt="%d/%m/%y-%H:%M:%S")
 
     log = logging.getLogger(name)
