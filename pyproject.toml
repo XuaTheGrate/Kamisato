@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "kamisato"
 version = "0.1.0"
-description = "A Discord bot for Genshin Impact players"
+description = "A utility bot to aid Genshin Impact players."
 authors = ["Maya <17090652+XuaTheGrate@users.noreply.github.com>"]
 license = "AGPL v3.0"
 
