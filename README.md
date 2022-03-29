@@ -1,6 +1,4 @@
-# Kamisato Ayaka - A Discord bot for Genshin Impact players
-
-A utility bot to aid Genshin Impact players in their quest through Teyvat.
+# Kamisato Ayaka - A utility bot to aid Genshin Impact players in their quest through Teyvat.
 
 ### Table of Contents
 
