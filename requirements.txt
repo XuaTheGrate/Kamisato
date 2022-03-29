@@ -1,2 +1,3 @@
 discord.py @ git+https://github.com/Rapptz/discord.py@master
 toml
+tabulate==0.8.9

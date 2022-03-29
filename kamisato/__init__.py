@@ -1,7 +1,19 @@
+"""
+A helper bot for Genshin Impact players.
+Copyright (C) 2022-Present XuaTheGrate
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
+
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import glob
 import logging
 from asyncio.subprocess import Process as AsyncProcess
 from logging.handlers import RotatingFileHandler
@@ -71,16 +83,26 @@ class Kamisato(commands.Bot):
     def __init__(self) -> None:
         super().__init__(
             command_prefix=commands.when_mentioned,
-            intents=discord.Intents.all()
+            intents=discord.Intents.all(),
+            help_command=None
         )
 
         config: ConfigT = toml.load("config.toml")  # type: ignore
         self.config = config
+        self._all_exts: list[str] = []
+        for file in glob.glob(r"kamisato\ext\*.py"):
+            self._all_exts.append(file.replace('\\', '.').replace('.py', ''))
+
+        self.log = log
 
         self._ssh_tunnel = self.config.get("ssh_tunnel", MISSING)
         self._ssh_tunnel_proc: AsyncProcess = MISSING
 
         self.db: asyncpg.Pool[asyncpg.Record] = MISSING
+
+    @property
+    def application_id(self) -> int | None:
+        return self.user and self.user.id
 
     async def get_context(self, message: discord.Message, *, cls: type[commands.Context[Kamisato]] = MISSING) -> commands.Context[Kamisato]:
         return await super().get_context(message, cls=cls or Context)
@@ -88,10 +110,36 @@ class Kamisato(commands.Bot):
     async def on_ready(self):
         log.info("Ready[user=%r, guild_count=%d, user_count=%d]", self.user, len(self.guilds), len(self.users))
 
+    async def start_database(self) -> asyncpg.Pool[asyncpg.Record]:
+        if self._ssh_tunnel:
+            await self.start_ssh_tunnel()
+
+        log.info("Database connected [{user}@{host}:{port}/{database}]".format(**self.config["postgresql"]))
+        
+        db: asyncpg.Pool[asyncpg.Record] = await asyncpg.create_pool(**self.config["postgresql"])  # type: ignore
+        self.db = db
+
+        return db
+
+    async def stop_database(self) -> None:
+        if self.db is not MISSING:
+            log.info("Disconnecting from database...")
+
+            try:
+                await asyncio.wait_for(self.db.close(), timeout=60.0)
+            except asyncio.TimeoutError:
+                log.warning("Timed out disconnecting from database.")
+                self.db.terminate()
+            finally:
+                self.db = MISSING
+
+        await self.stop_ssh_tunnel()
+
     async def start_ssh_tunnel(self) -> None:
         if self._ssh_tunnel_proc:
-            log.warning("SSH tunnel already running, terminating")
-            await self.stop_ssh_tunnel()
+            log.warning("SSH tunnel already running, ignoring")
+            # await self.stop_ssh_tunnel()
+            return
         
         log.info("Starting SSH tunnel with args %r", self._ssh_tunnel)
         self._ssh_tunnel_proc = proc = await asyncio.create_subprocess_exec("ssh", "-NL", *self._ssh_tunnel)
@@ -109,35 +157,22 @@ class Kamisato(commands.Bot):
             self._ssh_tunnel_proc = MISSING
     
     async def setup_hook(self) -> None:
-        if self._ssh_tunnel:
-            await self.start_ssh_tunnel()
+        db = await self.start_database()
 
-        db: asyncpg.Pool[asyncpg.Record] = await asyncpg.create_pool(**self.config["postgresql"])  # type: ignore
-        self.db = db
-
-        log.info("Database connected [{user}@{host}:{port}/{database}]".format(**self.config["postgresql"]))
+        async with db.acquire() as c, c.transaction():
+            with open("schema.sql", encoding='utf-8') as f:
+                schema = f.read()
+            await c.execute(schema)
 
         for ext in self.config["discord"]["extensions"]:
-            try:
-                await self.load_extension(ext)
-            except Exception as err:
-                log.error("Error occured while loading extension \"%s\"", ext, exc_info=err)
-            else:
-                log.info("Loaded \"%s\" successfully", ext)
+            await self.load_extension(ext)
 
-        await self.sync_all_commands()
+        # await self.sync_all_commands()
+        await self.tree.sync(guild=discord.Object(864774293300838420))
 
     async def close(self) -> None:
         log.info("Close accepted, shutting down.")
-        if self.db:
-            try:
-                await asyncio.wait_for(self.db.close(), timeout=60.0)
-            except asyncio.TimeoutError:
-                log.warning("Timed out shutting down database.")
-                self.db.terminate()
-            finally:
-                if self._ssh_tunnel:
-                    await self.stop_ssh_tunnel()
+        await self.stop_database()
         
         await super().close()
 

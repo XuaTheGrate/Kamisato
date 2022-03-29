@@ -1,0 +1,92 @@
+{
+    "domains": {
+        "talent": [
+            ["Freedom", "Prosperity", "Transience"],
+            ["Resistance", "Diligence", "Elegance"],
+            ["Ballad", "Gold", "Light"],
+            ["Freedom", "Prosperity", "Transience"],
+            ["Resistance", "Diligence", "Elegance"],
+            ["Ballad", "Gold", "Light"]
+        ],
+        "weapon": [
+            ["Decarabian", "Guyun", "Distant Sea"],
+            ["Boreal Wolf", "Mist Veiled Elixir", "Narukami"],
+            ["Dandelion Gladiator", "Aerosiderite", "Mask"],
+            ["Decarabian", "Guyun", "Distant Sea"],
+            ["Boreal Wolf", "Mist Veiled Elixir", "Narukami"],
+            ["Dandelion Gladiator", "Aerosiderite", "Mask"]
+        ]
+    },
+    "talent_books": {
+        "Freedom": {
+            "Aloy": "cryo",
+            "Amber": "pyro",
+            "Barbara": "hydro",
+            "Diona": "cryo",
+            "Klee": "pyro",
+            "Sucrose": "anemo",
+            "Childe": "hydro",
+            "Traveller": "anemo"
+        },
+        "Prosperity": {
+            "Keqing": "electro",
+            "Ningguang": "geo",
+            "Qiqi": "cryo",
+            "Shenhe": "cryo",
+            "Traveller": "geo",
+            "Xiao": "anemo"
+        },
+        "Transience": {
+            "Sangonomiya Kokomi": "hydro",
+            "Thoma": "pyro",
+            "Traveller": "electro",
+            "Yoimiya": "pyro"
+        },
+
+        "Resistance": {
+            "Bennett": "pyro",
+            "Diluc": "pyro",
+            "Eula": "cryo",
+            "Jean": "anemo",
+            "Mona": "hydro",
+            "Noelle": "geo",
+            "Razor": "electro"
+        },
+        "Diligence": {
+            "Chongyun": "cryo",
+            "Ganyu": "cryo",
+            "Hu Tao": "pyro",
+            "Kazuha": "anemo",
+            "Xiangling": "pyro",
+            "Yun Jin": "geo"
+        },
+        "Elegance": {
+            "Arataki Itto": "geo",
+            "Kamisato Ayaka": "cryo",
+            "Kamisato Ayato": "hydro",
+            "Kujou Sara": "electro"
+        },
+
+        "Ballad": {
+            "Albedo": "geo",
+            "Fischl": "electro",
+            "Kaeya": "cryo",
+            "Lisa": "electro",
+            "Rosaria": "cryo",
+            "Venti": "anemo"
+        },
+        "Gold": {
+            "Beidou": "electro",
+            "Xingqiu": "hydro",
+            "Xinyan": "pyro",
+            "Yanfei": "pyro",
+            "Zhongli": "geo"
+        },
+        "Light": {
+            "Gorou": "geo",
+            "Raiden Shogun": "electro",
+            "Sayu": "anemo",
+            "Yae Miko": "electro"
+        }
+    }
+}

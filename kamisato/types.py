@@ -1,13 +1,21 @@
+"""
+A helper bot for Genshin Impact players.
+Copyright (C) 2022-Present XuaTheGrate
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
+
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Literal, Protocol, TypedDict, TypeVar, TYPE_CHECKING, _TypedDict
+from typing import Any, Literal, TypedDict,TYPE_CHECKING, _TypedDict
 
 if TYPE_CHECKING:
-    from typing_extensions import TypeGuard
-else:
-    reveal_type = lambda i: i
-
+    ...
 
 class _ConfigDiscord(TypedDict):
     token: str
@@ -36,12 +44,21 @@ class Rarity(int, Enum):
 
     def __str__(self) -> str: return str(self.value)
 
+    def get_max_artifact_upgrade_count(self) -> int:
+        if self in {1, 2}:
+            return 0
+        if self == 3:
+            return 1
+        if self == 4:
+            return 3
+        return 5
 
-ArtifactSet = Literal[
+
+artifact_sets = [
     "OceanHuedClam"
 ]
 
-ArtifactSlot = Literal[
+artifact_slots = [
     "flower",
     "plume",
     "sands",
@@ -49,7 +66,7 @@ ArtifactSlot = Literal[
     "circlet"
 ]
 
-Character = Literal[
+character = [
     "SangonomiyaKokomi"
 ]
 
@@ -116,19 +133,19 @@ class _ScanData_Artifacts_Artifact_Substat(TypedDict):
 class _ScanData_Artifacts_Artifact(TypedDict):
     SubStatsCount: int
     level: int
-    location: Character
+    location: str
     lock: bool
     mainStatKey: str
     rarity: Literal[1, 2, 3, 4, 5]
-    setKey: ArtifactSet
-    slotKey: ArtifactSlot
+    setKey: str
+    slotKey: str
     substats: list[_ScanData_Artifacts_Artifact_Substat]
 
 class ScanData(_TypedDict, total=False):
     artifacts: list[_ScanData_Artifacts_Artifact]
 
 
-_ArtifactSubstats_Rarity_Def = TypedDict("_ArtifactSUbstats_Rarity_Def", {"def": list[float]})
+_ArtifactSubstats_Rarity_Def = TypedDict("_ArtifactSubstats_Rarity_Def", {"def": list[float]})
 
 class _ArtifactSubstats_Rarity(_ArtifactSubstats_Rarity_Def):
     atk: list[float]
@@ -148,6 +165,14 @@ ArtifactSubstats = TypedDict("ArtifactSubstats", {
     "4": _ArtifactSubstats_Rarity,
     "5": _ArtifactSubstats_Rarity
 })
+
+class _DailyData_Domains(TypedDict):
+    talent: list[tuple[str, str, str]]
+    weapon: list[tuple[str, str, str]]
+
+class DailyData(TypedDict):
+    domains: _DailyData_Domains
+    talent_books: dict[str, dict[str, str]]
 
 
 def conforms(obj: dict[str, Any], typ: Any) -> tuple[bool, set[str]] | None:
