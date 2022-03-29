@@ -1,3 +1,6 @@
 discord.py @ git+https://github.com/Rapptz/discord.py@master
 toml
 tabulate==0.8.9
+asyncpg
+git+https://github.com/bryanforbes/asyncpg-stubs@dependabot/pip/asyncpg-0.25.0
+
