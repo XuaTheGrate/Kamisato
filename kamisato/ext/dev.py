@@ -46,7 +46,7 @@ def trim(text: str, *, max: int = MISSING, code_block: bool = False, end: str = 
     return trimmed
 
 
-REMOVE_CODEBLOCK = re.compile(r"``````([a-zA-Z\-]+)?([\s\S]+?)```")
+REMOVE_CODEBLOCK = re.compile(r"```([a-zA-Z\-]+)?([\s\S]+?)```")
 def remove_codeblock(text: str) -> tuple[str | None, str]:
     find = REMOVE_CODEBLOCK.match(text)
     if not find:
