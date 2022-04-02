@@ -93,8 +93,8 @@ class Kamisato(commands.Bot):
         config: ConfigT = toml.load("config.toml")  # type: ignore
         self.config = config
         self._all_exts: list[str] = []
-        for file in glob.glob(r"kamisato\ext\*.py"):
-            self._all_exts.append(file.replace('\\', '.').replace('.py', ''))
+        for file in glob.glob(r"kamisato/ext/*.py"):
+            self._all_exts.append(file.replace('/', '.').replace('.py', ''))
 
         self.log = log
 
