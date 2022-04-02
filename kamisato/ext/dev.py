@@ -144,7 +144,7 @@ class Developers(commands.Cog, ac.Group):
             else:
                 success.append(extension)
 
-        embed = discord.Embed(colour=discord.Colour.green() if not fail else discord.Colour.red())
+        embed = discord.Embed(colour=discord.Colour.green() if not fail else discord.Colour.red(), description='\u200b')
         if success:
             embed.add_field(name="\U0001f4e5", value="\n".join(success))
         if fail:
@@ -273,6 +273,43 @@ class Developers(commands.Cog, ac.Group):
         
         self._eval_globals["_"] = result
         await modal.interaction.followup.send(f"```py\n{result}\n```")
+
+    @ac.command()
+    @ac.choices(status=[
+        ac.Choice(name="Online", value=discord.Status.online.value),
+        ac.Choice(name="Idle", value=discord.Status.idle.value),
+        ac.Choice(name="Do Not Disturb", value=discord.Status.do_not_disturb.value),
+        ac.Choice(name="Offline", value=discord.Status.offline.value)
+    ])
+    @ac.choices(type=[
+        ac.Choice(name="Playing", value=0),
+        ac.Choice(name="Listening", value=2),
+        ac.Choice(name="Watching", value=3),
+        ac.Choice(name="Competing", value=5)
+    ])
+    async def presence(
+        self, 
+        interaction: discord.Interaction, 
+        status: Optional[ac.Choice[str]] = None, 
+        type: Optional[ac.Choice[int]] = None, 
+        text: Optional[str] = None
+    ):
+        if text is None and type is not None:
+            await interaction.response.send_message("`text` must be specified with `type`", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        presence = None
+        if type is not None:
+            presence = discord.Activity(type=discord.ActivityType(type.value), name=text)
+
+        s = None
+        if status is not None:
+            s = discord.Status[status.value]
+
+        await self.bot.change_presence(status=s, activity=presence)
+        await interaction.followup.send("Done")
 
 
 async def setup(bot: Kamisato) -> None:
