@@ -7,7 +7,7 @@
 -- 
 -- You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-create table if not exists artifacts (
+CREATE TABLE IF NOT EXISTS artifacts (
     uuid SERIAL PRIMARY KEY,
     userid BIGINT NOT NULL,
     set TEXT NOT NULL,
@@ -16,32 +16,36 @@ create table if not exists artifacts (
     level SMALLINT NOT NULL
 );
 
-create table if not exists artifact_substats (
+CREATE TABLE IF NOT EXISTS artifact_substats (
     uuid INT REFERENCES artifacts on delete cascade,
     stat TEXT NOT NULL,
     rolls SMALLINT[] NOT NULL
 );
 
-create table if not exists user_config (
+CREATE TABLE IF NOT EXISTS user_config (
     userid BIGINT PRIMARY KEY UNIQUE NOT NULL,
     server TEXT NOT NULL
 );
 
-create table if not exists daily_reminder (
+CREATE TABLE IF NOT EXISTS daily_reminder (
     userid BIGINT UNIQUE REFERENCES user_config ON DELETE CASCADE,
     repeat BOOLEAN NOT NULL DEFAULT FALSE,
     channelid BIGINT NOT NULL
 );
 
-create table if not exists weekly_reminder (
+CREATE TABLE IF NOT EXISTS weekly_reminder (
     userid BIGINT UNIQUE REFERENCES user_config ON DELETE CASCADE,
     repeat BOOLEAN NOT NULL DEFAULT FALSE,
     channelid BIGINT NOT NULL
 );
 
-create table if not exists resin_reminder (
-    userid BIGINT UNIQUE REFERENCES user_config ON DELETE CASCADE,
-    rlimit INT NOT NULL,
-    alert TIMESTAMP WITH TIME ZONE,
-    channelid BIGINT NOT NULL
+CREATE TABLE IF NOT EXISTS custom_reminder (
+    uid SERIAL PRIMARY KEY UNIQUE NOT NULL,
+    userid BIGINT NOT NULL,
+    channelid BIGINT NOT NULL,
+    message TEXT NOT NULL DEFAULT '...',
+    target TIMESTAMP NOT NULL,
+    created TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
 );
+
+CREATE INDEX IF NOT EXISTS custom_reminder_target_idx ON custom_reminder (target);

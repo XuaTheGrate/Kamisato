@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
 class _ConfigDiscord(TypedDict):
     token: str
-    extensions: list[str]
 
 class _ConfigPostgres(TypedDict):
     host: str

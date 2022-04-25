@@ -15,9 +15,11 @@ import asyncio
 import contextlib
 import glob
 import logging
+import os
 import pathlib
 from asyncio.subprocess import Process as AsyncProcess
 from logging.handlers import RotatingFileHandler
+import sys
 from typing import TYPE_CHECKING, TypeVar
 
 import asyncpg
@@ -93,9 +95,6 @@ class Kamisato(commands.Bot):
         config: ConfigT = toml.load("config.toml")  # type: ignore
         self.config = config
         self._all_exts: list[str] = []
-        for file in glob.glob(r"kamisato/ext/*.py"):
-            self._all_exts.append(file.replace('/', '.').replace('.py', ''))
-
         self.log = log
 
         self._ssh_tunnel = self.config.get("ssh_tunnel", MISSING)
@@ -167,8 +166,14 @@ class Kamisato(commands.Bot):
                 schema = f.read()
             await c.execute(schema)
 
-        for ext in self.config["discord"]["extensions"]:
-            await self.load_extension(ext)
+        for file in pathlib.Path("kamisato/ext").glob("[!_]*"):
+            ext = ".".join(file.parts).removesuffix(".py")
+            try:
+                await self.load_extension(ext)
+            except commands.NoEntryPointError:
+                pass
+            else:
+                self._all_exts.append(ext)
 
         # await self.sync_all_commands()
         await self.tree.sync(guild=discord.Object(864774293300838420))
@@ -179,23 +184,3 @@ class Kamisato(commands.Bot):
         
         await super().close()
 
-    async def sync_all_commands(self) -> None:
-        if self.user is None:
-            raise RuntimeError("sync_all_commands should be called during startup (after login)")
-
-        global_cmds = [c.to_dict() for c in self.tree._global_commands.values()]
-        guild_commands = {k: [c.to_dict() for c in v.values()] for k, v in self.tree._guild_commands.items()}
-
-        for (_, guild_id, _), ctxmenu in self.tree._context_menus.items():
-            if not guild_id:
-                global_cmds.append(ctxmenu.to_dict())
-            else:
-                guild_commands.setdefault(guild_id, []).append(ctxmenu.to_dict())
-
-        if global_cmds:
-            log.info("Syncing %d global commands", len(global_cmds))
-            await self.http.bulk_upsert_global_commands(self.user.id, global_cmds)
-
-        for guild_id, payload in guild_commands.items():
-            log.info("Syncing %d commands for guild %d", len(payload), guild_id)
-            await self.http.bulk_upsert_guild_commands(self.user.id, guild_id, payload)

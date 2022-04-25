@@ -11,10 +11,13 @@ You should have received a copy of the GNU Affero General Public License along w
 
 from __future__ import annotations
 
+import ast
+import asyncio, asyncio.subprocess
 import io
 import re
 import textwrap
 import traceback
+import sys
 from typing import Optional, TYPE_CHECKING
 
 import discord
@@ -22,18 +25,19 @@ from discord import app_commands as ac, ui, utils
 from discord.ext import commands
 from tabulate import tabulate
 
+from kamisato.util import MergeStream, Paginator, ReactivePaginator
+
 if TYPE_CHECKING:
     from typing import Any, Awaitable, Callable, Generator
 
     from kamisato import Kamisato
 
 
-MISSING = utils.MISSING
 CLOSET_ID = 864774293300838420
 MAYA_ID = 455289384187592704
 
 
-def trim(text: str, *, max: int = MISSING, code_block: bool = False, end: str = "…") -> str:
+def trim(text: str, *, max: int = utils.MISSING, code_block: bool = False, end: str = "…") -> str:
     new_max: int = max or (1900 if code_block else 1990)
 
     trimmed = text[:new_max]
@@ -62,14 +66,14 @@ def full_command_name(command: ac.Command[Any, Any, Any] | ac.Group) -> Generato
 
 
 class EvalModal(ui.Modal):
-    def __init__(self, *, sql: bool = False, prev_code: str | None = None, prev_extras: str | None = None):
-        super().__init__(title=("SQL" if sql else "Python") + " Evaluation")
+    def __init__(self, *, title: str, sql: bool = False, prev_code: str | None = None, prev_extras: str | None = None):
+        super().__init__(title=title)
 
         self.code = ui.TextInput(label="Code to evaluate", style=discord.TextStyle.paragraph, required=True, default=prev_code)
         self.add_item(self.code)
 
         self.interaction: discord.Interaction = utils.MISSING
-        self.extras: ui.TextInput = MISSING
+        self.extras: ui.TextInput = utils.MISSING
 
         if sql:
             self.extras = ui.TextInput(label="Semicolon-separated SQL args", required=False, default=prev_extras)
@@ -155,7 +159,7 @@ class Developers(commands.Cog, ac.Group):
     @load.autocomplete("extension")
     async def _load_autocomplete(self, interaction: discord.Interaction, current: str) -> list[ac.Choice[str]]:
         unloaded = sorted(set(self.bot._all_exts) - set(self.bot.extensions.keys()))
-        return [ac.Choice(name=k, value=k) for k in unloaded if k.startswith(current)]
+        return [ac.Choice(name=k, value=k) for k in unloaded if current in k]
 
     @cog.command()
     async def reload(self, interaction: discord.Interaction, extension: str) -> None:
@@ -171,7 +175,7 @@ class Developers(commands.Cog, ac.Group):
     @reload.autocomplete("extension")
     async def _reload_autocomplete(self, interaction: discord.Interaction, current: str) -> list[ac.Choice[str]]:
         exts = list(self.bot.extensions.keys())
-        return [ac.Choice(name=k, value=k) for k in sorted(exts) if k.startswith(current)]
+        return [ac.Choice(name=k, value=k) for k in sorted(exts) if current in k]
 
     @cog.command()
     async def list(self, interaction: discord.Interaction) -> None:
@@ -212,7 +216,7 @@ class Developers(commands.Cog, ac.Group):
 
     @ac.command()
     async def sql(self, interaction: discord.Interaction):
-        modal = EvalModal(sql=True, prev_code=self._last_sql, prev_extras=self._last_sql_args)
+        modal = EvalModal(title="SQL Eval", sql=True, prev_code=self._last_sql, prev_extras=self._last_sql_args)
         await interaction.response.send_modal(modal)
         if await modal.wait():
             return
@@ -242,7 +246,7 @@ class Developers(commands.Cog, ac.Group):
 
     @ac.command()
     async def eval(self, interaction: discord.Interaction):
-        modal = EvalModal(sql=False, prev_code=self._last_eval)
+        modal = EvalModal(title="Python Eval", prev_code=self._last_eval)
         await interaction.response.send_modal(modal)
         if await modal.wait():
             return
@@ -250,6 +254,16 @@ class Developers(commands.Cog, ac.Group):
         await modal.interaction.response.defer(ephemeral=True, thinking=True)
         self._last_eval = modal.code.value
         code = f"async def _ka_eval_func0():\n{textwrap.indent(modal.code.value, '    ')}"  # type: ignore
+
+        # if we don't specify `return` in our eval code, then we can inject it directly
+        parse: ast.Module = ast.parse(code)
+        astfunc: ast.AsyncFunctionDef = parse.body[0]  # type: ignore
+        ret = astfunc.body[-1]
+        if not isinstance(ret, ast.Return):
+            astfunc.body[-1] = ast.Return(ret.value)  # type: ignore
+        
+        code = ast.unparse(parse)
+
         self._eval_globals["interaction"] = interaction
 
         lcls = {}
@@ -273,6 +287,27 @@ class Developers(commands.Cog, ac.Group):
         
         self._eval_globals["_"] = result
         await modal.interaction.followup.send(f"```py\n{result}\n```")
+
+    @ac.command()
+    async def shell(self, interaction: discord.Interaction):
+        modal = EvalModal(title="Shell Eval")
+        await interaction.response.send_modal(modal)
+        self.bot.log.debug("pee pee poo poo")
+        if await modal.wait():
+            return
+        
+        await modal.interaction.response.defer(ephemeral=True, thinking=True)
+        proc = await asyncio.create_subprocess_shell(modal.code.value, stdout=-1, stderr=-1)  # type: ignore
+
+        shell = "powershell" if sys.platform == "win32" else "bash"
+
+        pg = Paginator(max_size=1900, prefix="```" + shell, suffix="```")
+
+        async for line in MergeStream(proc):
+            pg.appendln(line)
+        self.bot.log.debug(f"pages: {len(pg.pages)}")
+        
+        await modal.interaction.followup.send(content=pg.pages[0], view=ReactivePaginator(pg, allowed_users={interaction.user.id}))
 
     @ac.command()
     @ac.choices(status=[
@@ -300,15 +335,15 @@ class Developers(commands.Cog, ac.Group):
 
         await interaction.response.defer(ephemeral=True)
 
-        presence = None
+        activity = None
         if type is not None:
-            presence = discord.Activity(type=discord.ActivityType(type.value), name=text)
+            self.bot.activity = activity = discord.Activity(type=discord.ActivityType(type.value), name=text)
 
         s = None
         if status is not None:
-            s = discord.Status[status.value]
+            self.bot.status = s = discord.Status[status.value]
 
-        await self.bot.change_presence(status=s, activity=presence)
+        await self.bot.change_presence(status=s, activity=activity)
         await interaction.followup.send("Done")
 
 
